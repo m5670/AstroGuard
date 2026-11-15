@@ -170,7 +170,9 @@ TR = lang == "Türkçe"
 
 astronauts = get_astronauts()
 
-st.sidebar.markdown("### 🧑‍🚀 Astronaut Identification")
+st.sidebar.markdown(
+    f"### 🧑‍🚀 {'Astronot Kimliği' if lang == 'Türkçe' else 'Astronaut Identification'}"
+)
 
 astronaut_options = {
     f"{a['name']} ({a['astronaut_id']})": a['astronaut_id']
