@@ -409,8 +409,158 @@ def analyze_measurement(measurement, baseline, lang="English"):
         )
 
     # =================================
+    # RECOMMENDED ACTIONS
+    # =================================
+
+    actions = []
+
+    def add_action(tr_text, en_text):
+        actions.append(msg(tr_text, en_text))
+
+    # HEART RATE
+    if hr > 130:
+        add_action(
+            "Fiziksel aktiviteyi durdurun ve güvenli bir pozisyonda dinlenin. "
+            "Sensör bağlantısını kontrol ederek nabzı tekrar ölçün. "
+            "Değer yüksek kalıyorsa görev kontrol merkezine derhal bildirin.",
+            "Stop physical activity and rest in a safe position. "
+            "Check the sensor connection and repeat the measurement. "
+            "If the value remains high, notify Mission Control immediately."
+        )
+
+    elif hr < 30 and activity != "sleep":
+        add_action(
+            "Ölçümü ve sensör bağlantısını kontrol edin. "
+            "Nabız düşüklüğü devam ediyorsa görev kontrol merkezine derhal bildirin.",
+            "Check the measurement and sensor connection. "
+            "If the low heart rate persists, notify Mission Control immediately."
+        )
+
+    elif hr <= 40:
+        add_action(
+            "Dinlenin, ölçümü tekrar edin ve sonucu sağlık ekibine bildirin.",
+            "Rest, repeat the measurement, and report the result to the medical team."
+        )
+
+    # OXYGEN
+    if oxygen <= 91:
+        add_action(
+            "Sensörün doğru takıldığını kontrol edin. Oksijen değeri düşük kalıyorsa "
+            "görev kontrol merkezine derhal bildirin.",
+            "Check that the sensor is correctly positioned. If oxygen saturation "
+            "remains low, notify Mission Control immediately."
+        )
+
+    elif oxygen <= 95:
+        add_action(
+            "Oksijen ölçümünü tekrar edin ve değişimi takip edin. "
+            "Düşüş devam ederse sağlık ekibine bildirin.",
+            "Repeat the oxygen measurement and monitor the trend. "
+            "Notify the medical team if the decrease persists."
+        )
+
+    # TEMPERATURE
+    if temp <= 35:
+        add_action(
+            "Sıcaklık ölçümünü doğrulayın. Uygun termal koşulları sağlayın "
+            "ve sağlık ekibine derhal bildirin.",
+            "Verify the temperature reading. Maintain appropriate thermal conditions "
+            "and notify the medical team immediately."
+        )
+
+    elif temp > 39:
+        add_action(
+            "Sıcaklığı tekrar ölçün, fiziksel aktiviteyi durdurun "
+            "ve sağlık ekibine bildirin.",
+            "Repeat the temperature measurement, stop physical activity, "
+            "and notify the medical team."
+        )
+
+    elif temp > 38:
+        add_action(
+            "Sıcaklığı tekrar ölçün ve belirtileri takip edin. "
+            "Yüksek değer devam ederse sağlık ekibine bildirin.",
+            "Repeat the temperature measurement and monitor symptoms. "
+            "Notify the medical team if the elevated reading persists."
+        )
+
+    # RESPIRATORY RATE
+    if respiratory is not None and (respiratory <= 8 or respiratory >= 25):
+        add_action(
+            "Solunum hızını tekrar kontrol edin. Değer anormalse "
+            "görev kontrol merkezine derhal bildirin.",
+            "Recheck the respiratory rate. If it remains abnormal, "
+            "notify Mission Control immediately."
+        )
+
+    # BLOOD PRESSURE
+    if systolic is not None and (systolic <= 90 or systolic >= 220):
+        add_action(
+            "Tansiyonu tekrar ölçün ve ölçüm pozisyonunu kontrol edin. "
+            "Anormal değer devam ederse sağlık ekibine derhal bildirin.",
+            "Repeat the blood pressure measurement and check the measurement position. "
+            "If the abnormal value persists, notify the medical team immediately."
+        )
+
+    elif (
+        systolic is not None and diastolic is not None
+        and (systolic >= 140 or diastolic >= 90)
+    ):
+        add_action(
+            "Uygun dinlenme sonrasında tansiyonu tekrar ölçün "
+            "ve sonucu sağlık ekibine bildirin.",
+            "Repeat the blood pressure measurement after appropriate rest "
+            "and report the result to the medical team."
+        )
+
+    # NEWS2 RISK
+    if news_score >= 7:
+        add_action(
+            "NEWS2 yüksek risk seviyesinde. Derhal acil tıbbi değerlendirme "
+            "isteyin ve görev kontrol merkezinin talimatlarını uygulayın.",
+            "NEWS2 indicates high risk. Request immediate urgent medical assessment "
+            "and follow Mission Control instructions."
+        )
+
+    elif news_score >= 5:
+        add_action(
+            "NEWS2 orta risk seviyesinde. Sağlık ekibinden acil değerlendirme isteyin.",
+            "NEWS2 indicates medium risk. Request urgent assessment from the medical team."
+        )
+
+    # SYMPTOMS
+    if symptoms and str(symptoms).strip():
+        add_action(
+            "Bildirilen belirtileri kaydedin ve sağlık ekibine iletin. "
+            "Belirtiler şiddetliyse derhal yardım isteyin.",
+            "Record the reported symptoms and communicate them to the medical team. "
+            "Seek immediate assistance if symptoms are severe."
+        )
+
+    if not actions and warnings:
+        add_action(
+            "Ölçümleri tekrar kontrol edin ve uyarıları sağlık ekibine bildirin.",
+            "Recheck the measurements and report the alerts to the medical team."
+        )
+
+    # =================================
     # 12. FINAL RESULT
     # =================================
+
+    details_text = "\n".join(
+        criticals + warnings + observations
+    )
+
+    if actions:
+        details_text += "\n\n" + msg(
+            "📋 ÖNERİLEN EYLEMLER:\n",
+            "📋 RECOMMENDED ACTIONS:\n"
+        )
+
+        details_text += "\n".join(
+            f"{i + 1}. {action}"
+            for i, action in enumerate(actions)
+        )
 
     if criticals:
         return {
@@ -419,9 +569,7 @@ def analyze_measurement(measurement, baseline, lang="English"):
                 "KRİTİK UYARI: Yüksek riskli değerlendirme sonucu tespit edildi. Sağlık ekibine bildirin.",
                 "CRITICAL ALERT: A high-risk evaluation result was detected. Notify the medical team."
             ),
-            "details": "\n".join(
-                criticals + warnings + observations
-            )
+            "details": details_text
         }
 
     if warnings:
@@ -431,9 +579,7 @@ def analyze_measurement(measurement, baseline, lang="English"):
                 "UYARI: Bir veya daha fazla değerlendirme eşiği aşıldı. Ölçümleri doğrulayın ve sağlık ekibine bildirin.",
                 "WARNING: One or more evaluation thresholds were reached. Verify measurements and notify the medical team."
             ),
-            "details": "\n".join(
-                warnings + observations
-            )
+            "details": details_text
         }
 
     return {
@@ -442,5 +588,5 @@ def analyze_measurement(measurement, baseline, lang="English"):
             "Mevcut değerlendirme eşiklerine göre uyarı tespit edilmedi. İzlemeye devam edin.",
             "No alert was detected by the available evaluation thresholds. Continue monitoring."
         ),
-        "details": "\n".join(observations)
+        "details": details_text
     }
