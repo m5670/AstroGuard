@@ -356,6 +356,68 @@ T = {
 }
 
 
+def show_health_result(result, measurement, astronaut_name=None):
+    """Display a clean and consistent astronaut health alert."""
+
+    status = result.get("status", "Review")
+    details = result.get("details", "")
+
+    if status == "Critical":
+        st.error("🚨 " + result["summary"])
+    elif status == "Warning":
+        st.warning("⚠️ " + result["summary"])
+    elif status == "Normal":
+        st.success("🟢 " + result["summary"])
+    else:
+        st.info("ℹ️ " + result["summary"])
+
+    if astronaut_name:
+        st.caption(f"👨‍🚀 {astronaut_name}")
+
+    # Main measurements
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "❤️ " + ("Kalp Atış Hızı" if TR else "Heart Rate"),
+        f"{measurement.get('heart_rate', '—')} bpm"
+    )
+
+    col2.metric(
+        "🌡️ " + ("Sıcaklık" if TR else "Temperature"),
+        f"{measurement.get('temperature', '—')} °C"
+    )
+
+    col3.metric(
+        "🫁 " + ("Oksijen" if TR else "Oxygen"),
+        f"{measurement.get('oxygen', '—')}%"
+    )
+
+    # Separate recommended actions from technical details
+    marker_tr = "📋 ÖNERİLEN EYLEMLER:"
+    marker_en = "📋 RECOMMENDED ACTIONS:"
+
+    marker = marker_tr if TR else marker_en
+
+    technical_details, separator, action_details = details.partition(marker)
+
+    # Recommended actions
+    if separator and action_details.strip():
+        st.markdown(
+            "### 📋 " + (
+                "Önerilen Eylemler" if TR else "Recommended Actions"
+            )
+        )
+        st.markdown(action_details.strip())
+
+    # Technical report
+    if technical_details.strip():
+        with st.expander(
+            "📊 " + (
+                "Detaylı Sağlık Raporu" if TR else "Detailed Health Report"
+            )
+        ):
+            st.text(technical_details.strip())
+
 page = st.sidebar.radio(
     T["navigation"],
     [
@@ -387,11 +449,7 @@ elif page == T["dashboard"]:
     else:
         latest = df.iloc[-1]
 
-        col1, col2, col3 = st.columns(3)
 
-        col1.metric(T["heart"], f"{latest['heart_rate']}")
-        col2.metric(T["temperature"], f"{latest['temperature']}")
-        col3.metric(T["oxygen"], f"{latest['oxygen']}")
 
         result = analyze_measurement(
             latest.to_dict(),
@@ -401,50 +459,11 @@ elif page == T["dashboard"]:
 
         st.subheader(T["assessment"])
 
-        
-        if result["status"] == "Critical":
-            st.error("🚨 " + result["summary"])
-
-            st.html(f"""
-            **👨‍🚀 Astronot:** {astronaut_name}
-
-            **❤️ Kalp Atış Hızı:** {latest['heart_rate']} bpm
-
-            **🌡️ Vücut Sıcaklığı:** {latest['temperature']} °C
-
-            **🫁 Oksijen Doygunluğu:** %{latest['oxygen']}
-
-            **🕒 Ölçüm Zamanı:** {latest['measured_at']}
-
-            **Alarm Nedeni:**
-
-            {result['details']}
-            """)
-
-        elif result["status"] == "Warning":
-            st.warning("⚠️ " + result["summary"])
-
-            st.html(f"""
-            **👨‍🚀 Astronot:** {astronaut_name}
-
-            **❤️ Kalp Atış Hızı:** {latest['heart_rate']} bpm
-
-            **🌡️ Vücut Sıcaklığı:** {latest['temperature']} °C
-
-            **🫁 Oksijen Doygunluğu:** %{latest['oxygen']}
-
-            **🕒 Ölçüm Zamanı:** {latest['measured_at']}
-
-            **Uyarı Nedeni:**
-
-            {result['details']}
-            """)
-
-        elif result["status"] == "Normal":
-            st.success("🟢 " + result["summary"])
-
-        else:
-            st.info(result["summary"])
+        show_health_result(
+            result,
+            latest.to_dict(),
+            astronaut_name
+        )
 
 
         st.subheader(T["history"])
@@ -913,7 +932,7 @@ elif page == T["measurements"]:
                             get_baseline(selected_astronaut_id),
                             lang
                         )
-                        
+
                         st.success(T["saved"])
 
                         st.subheader(
@@ -930,20 +949,11 @@ elif page == T["measurements"]:
 
                         st.divider()
 
-                        if result["status"] in ["Critical", "Warning"]:
-
-                            if result["status"] == "Critical":
-                                st.error("🚨 " + result["summary"])
-                            else:
-                                st.warning("⚠️ " + result["summary"])
-
-                            st.write(result["details"])
-
-                        elif result["status"] == "Normal":
-                            st.success("🟢 " + result["summary"])
-
-                        else:
-                            st.info(result["summary"])
+                        show_health_result(
+                            result,
+                            measurement,
+                            astronaut_name
+                        )
 
 
 elif page == T["assistant"]:
@@ -1170,12 +1180,6 @@ elif page == T["mission_control"]:
             "Astronot Sağlık Durumu"
         )
 
-        col1, col2, col3 = st.columns(3)
-
-        col1.metric(T["heart"], latest["heart_rate"])
-        col2.metric(T["temperature"], latest["temperature"])
-        col3.metric(T["oxygen"], latest["oxygen"])
-
         result = analyze_measurement(
             latest.to_dict(), baseline, lang
         )
@@ -1183,35 +1187,11 @@ elif page == T["mission_control"]:
         st.divider()
         st.subheader("🚨 " + T["alert"])
 
-        # Sağlık uyarısı
-        if result.get("status") in ["Critical", "Warning", "Review"]:
-
-            if result["status"] == "Critical":
-                st.error("🚨 KRİTİK SAĞLIK ALARMI")
-            else:
-                st.warning("⚠️ SAĞLIK UYARISI")
-
-            st.markdown(f"""
-            **👨‍🚀 Astronot:** {astronaut_name}
-
-            **❤️ Kalp Atış Hızı:** {latest['heart_rate']} bpm
-
-            **🌡️ Vücut Sıcaklığı:** {latest['temperature']} °C
-
-            **🫁 Oksijen Doygunluğu:** %{latest['oxygen']}
-
-            **🕒 Ölçüm Zamanı:** {latest['measured_at']}
-            """)
-
-            st.write("**Alarm Nedeni:**")
-            st.write(result["summary"])
-            st.write(result["details"])
-
-        elif result["status"] == "Normal":
-            st.success("🟢 " + result["summary"])
-
-        else:
-            st.info(result["summary"])
+        show_health_result(
+            result,
+            latest.to_dict(),
+            astronaut_name
+        )
 
         st.divider()
         st.subheader("📊 " + T["history"])
