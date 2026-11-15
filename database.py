@@ -181,12 +181,12 @@ def init_db():
         }
 
         if "conversation_id" not in chat_columns:
+
             con.execute("""
                 ALTER TABLE chat_messages
                 ADD COLUMN conversation_id INTEGER
             """)
 
-            # Move old messages into a single conversation per astronaut
             astronauts_with_messages = con.execute("""
                 SELECT DISTINCT astronaut_id
                 FROM chat_messages
@@ -194,6 +194,7 @@ def init_db():
             """).fetchall()
 
             for (astronaut_id,) in astronauts_with_messages:
+
                 first_message = con.execute("""
                     SELECT content
                     FROM chat_messages
@@ -215,12 +216,12 @@ def init_db():
 
                 conversation_id = cursor.lastrowid
 
-        con.execute("""
-            UPDATE chat_messages
-            SET conversation_id = ?
-            WHERE astronaut_id = ?
-            AND conversation_id IS NULL
-        """, (conversation_id, astronaut_id))
+                con.execute("""
+                    UPDATE chat_messages
+                    SET conversation_id = ?
+                    WHERE astronaut_id = ?
+                    AND conversation_id IS NULL
+                """, (conversation_id, astronaut_id))
 
         chat_columns = {
             row[1]
