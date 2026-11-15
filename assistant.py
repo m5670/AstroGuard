@@ -1,4 +1,27 @@
-
+# ============================================================
+# AI USAGE AND INTEGRATION DISCLOSURE
+# ============================================================
+# DEVELOPMENT:
+# ChatGPT (OpenAI) was used as a development support tool
+# for code explanations, debugging, and implementation guidance.
+#
+# RUNTIME AI INTEGRATION:
+# Google Gemini API is integrated into AstroGuard to provide
+# AI-generated responses to astronauts' questions.
+#
+# The Gemini assistant can use the user's question, recent
+# health measurements, Earth baseline data, and conversation
+# history as contextual information.
+#
+# The AI-generated responses are informational and must not
+# be considered a substitute for professional medical advice
+# or approved mission medical protocols.
+#
+# AI MODEL:
+# Gemini 3.5 Flash Lite
+#
+# The developer reviewed and integrated the implementation.
+# ============================================================
 import os
 import streamlit as st
 from dotenv import load_dotenv

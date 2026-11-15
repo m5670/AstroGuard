@@ -1,4 +1,21 @@
-
+# ============================================================
+# AI USAGE AND DEVELOPMENT DISCLOSURE
+# ============================================================
+# ChatGPT (OpenAI) was used as a development support tool
+# during the development of this emergency guidance module.
+#
+# AI assistance included code explanations, debugging support,
+# and implementation guidance.
+#
+# The emergency guidance content is predefined and
+# retrieved through rule-based Python logic.
+#
+# No generative AI API is called by this module at runtime.
+# The guidance is not a substitute for approved,
+# mission-specific emergency procedures or medical care.
+#
+# The developer reviewed and integrated the implementation.
+# ============================================================
 def get_emergency_notice(topic, lang="English"):
 
     tr = lang == "Türkçe"

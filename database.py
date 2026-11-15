@@ -1,4 +1,24 @@
-
+# ============================================================
+# AI USAGE AND DEVELOPMENT DISCLOSURE
+# ============================================================
+# ChatGPT (OpenAI) was used as a development support tool
+# during the development of this database module.
+#
+# AI assistance included code explanations, debugging support,
+# and implementation guidance.
+#
+# This module uses SQLite for data storage and retrieval.
+# It stores astronaut profiles, health measurements, Earth
+# baseline values, and AI assistant conversation history.
+#
+# AI-generated responses are produced separately through
+# the Google Gemini API integration in assistant.py.
+#
+# This module does not independently generate AI responses
+# or perform AI-based health analysis.
+#
+# The developer reviewed and integrated the implementation.
+# ============================================================
 import sqlite3
 import os
 import pandas as pd
@@ -395,93 +415,6 @@ def get_measurements(astronaut_id="AST-001"):
             con,
             params=(astronaut_id,)
         )
-
-
-
-def save_baseline(
-    heart_rate,
-    temperature,
-    oxygen,
-    respiratory_rate=None,
-    systolic_bp=None,
-    diastolic_bp=None,
-    radiation_rate=None,
-    radiation_dose=None,
-    astronaut_id="AST-001"
-):
-
-    with connect() as con:
-
-        con.execute("""
-            INSERT INTO baseline (
-                astronaut_id,
-                heart_rate,
-                temperature,
-                oxygen,
-                respiratory_rate,
-                systolic_bp,
-                diastolic_bp,
-                radiation_rate,
-                radiation_dose
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-
-            ON CONFLICT(astronaut_id) DO UPDATE SET
-                heart_rate = excluded.heart_rate,
-                temperature = excluded.temperature,
-                oxygen = excluded.oxygen,
-                respiratory_rate = excluded.respiratory_rate,
-                systolic_bp = excluded.systolic_bp,
-                diastolic_bp = excluded.diastolic_bp,
-                radiation_rate = excluded.radiation_rate,
-                radiation_dose = excluded.radiation_dose
-        """, (
-            astronaut_id,
-            heart_rate,
-            temperature,
-            oxygen,
-            respiratory_rate,
-            systolic_bp,
-            diastolic_bp,
-            radiation_rate,
-            radiation_dose
-        ))
-
-
-def get_baseline(astronaut_id="AST-001"):
-
-    if not astronaut_id:
-        return None
-
-    with connect() as con:
-
-        row = con.execute("""
-            SELECT
-                heart_rate,
-                temperature,
-                oxygen,
-                respiratory_rate,
-                systolic_bp,
-                diastolic_bp,
-                radiation_rate,
-                radiation_dose
-            FROM baseline
-            WHERE astronaut_id = ?
-        """, (astronaut_id,)).fetchone()
-
-    if row is None:
-        return None
-
-    return {
-        "heart_rate": row[0],
-        "temperature": row[1],
-        "oxygen": row[2],
-        "respiratory_rate": row[3],
-        "systolic_bp": row[4],
-        "diastolic_bp": row[5],
-        "radiation_rate": row[6],
-        "radiation_dose": row[7]
-    }
 
 def save_baseline(
     heart_rate,

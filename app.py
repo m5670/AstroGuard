@@ -1,3 +1,16 @@
+# ============================================================
+# AI USAGE DISCLOSURE
+# ============================================================
+# ChatGPT (OpenAI) was used as a development support tool for
+# code explanations, debugging, implementation guidance, and
+# improving parts of the application structure.
+#
+# The project developer reviewed, adapted, and integrated the
+# code into AstroGuard.
+#
+# The AI assistant functionality is implemented separately
+# in assistant.py and integrated into this application.
+# ============================================================
 import streamlit as st
 import plotly.express as px
 
@@ -25,6 +38,10 @@ from database import (
 )
 
 from analysis import analyze_measurement
+# AI INTEGRATION:
+# Imports the AI assistant function used to generate responses
+# to astronaut health-related questions.
+# The AI assistant implementation is maintained in assistant.py.
 from assistant import answer_question
 from emergency import get_emergency_notice
 
@@ -1029,7 +1046,12 @@ elif page == T["assistant"]:
 
         if question:
 
-            # AI cevabını oluştur
+            # AI-GENERATED RESPONSE:
+            # The assistant receives the user's question, available
+            # measurement data, baseline information, language, and
+            # conversation history to generate a contextual response.
+            # AI-generated guidance is informational and does not
+            # replace approved medical procedures or professional care.
             response = answer_question(
                 question,
                 get_measurements(selected_astronaut_id),

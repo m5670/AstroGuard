@@ -1,4 +1,21 @@
-
+# ============================================================
+# AI USAGE AND DEVELOPMENT DISCLOSURE
+# ============================================================
+# ChatGPT (OpenAI) was used as a development support tool
+# during the development of this analysis module.
+#
+# AI assistance included code explanations, debugging support,
+# and implementation guidance.
+#
+# IMPORTANT:
+# This module uses predefined, rule-based evaluation logic.
+# NEWS2 scoring and the configured NASA-related reference
+# criteria are evaluated through programmed conditions.
+# Generative AI is NOT used to calculate the scores or
+# independently determine the health status in this module.
+#
+# The developer reviewed and integrated the implementation.
+# ============================================================
 def analyze_measurement(measurement, baseline, lang="English"):
 
     tr = lang == "Türkçe"
