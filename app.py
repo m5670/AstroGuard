@@ -8,9 +8,16 @@ from database import (
     get_baseline,
     save_baseline,
     delete_measurements,
+
+    # AI Chat
     add_chat_message,
     get_chat_history,
     clear_chat_history,
+    create_chat_conversation,
+    get_chat_conversations,
+    delete_chat_conversation,
+
+    # Astronauts
     add_astronaut,
     get_astronauts,
     astronaut_exists,
@@ -937,6 +944,7 @@ elif page == T["measurements"]:
                         else:
                             st.info(result["summary"])
 
+
 elif page == T["assistant"]:
 
     st.header("🤖 " + T["assistant"])
@@ -947,44 +955,147 @@ elif page == T["assistant"]:
         "AstroGuard Yapay Zeka Asistanı"
     )
 
-    # Yeni sohbet butonu
-    if st.button("🆕 Yeni Sohbet" if TR else "🆕 New Chat"):
-        clear_chat_history(selected_astronaut_id)
-        st.rerun()
+    # Astronot değiştiğinde aktif sohbeti sıfırla
+    if st.session_state.get("chat_astronaut") != selected_astronaut_id:
+        st.session_state.chat_astronaut = selected_astronaut_id
+        st.session_state.active_conversation = None
 
-    st.divider()
+    # Astronotun sohbetlerini getir
+    conversations = get_chat_conversations(selected_astronaut_id)
 
-    # Önceki mesajları veritabanından getir
-    history = get_chat_history(astronaut_id=selected_astronaut_id)
+    # Aktif sohbet yoksa son sohbeti aç veya yeni sohbet oluştur
+    active_id = st.session_state.get("active_conversation")
 
-    # Önceki mesajları ekranda göster
-    for message in history:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    conversation_ids = [c["id"] for c in conversations]
 
-    # Yeni soru alanı
-    question = st.chat_input(
-        "AstroGuard'a bir soru sor..."
-        if TR else
-        "Ask AstroGuard a question..."
-    )
+    if active_id not in conversation_ids:
+        if conversations:
+            active_id = conversations[0]["id"]
+        else:
+            active_id = create_chat_conversation(selected_astronaut_id)
 
-    if question:
+        st.session_state.active_conversation = active_id
 
-        # Önceki konuşmaları Gemini'ye gönder
-        response = answer_question(
-            question,
-            get_measurements(selected_astronaut_id),
-            get_baseline(selected_astronaut_id),
-            lang,
-            history
+    # Sekmeler
+    tab_chat, tab_history = st.tabs([
+        "💬 Sohbet" if TR else "💬 Chat",
+        "🕘 Geçmiş Sohbetler" if TR else "🕘 Chat History"
+    ])
+
+    # -------------------------
+    # SOHBET SEKME
+    # -------------------------
+    with tab_chat:
+
+        if st.button(
+            "🆕 Yeni Sohbet" if TR else "🆕 New Chat",
+            key="new_chat"
+        ):
+            new_id = create_chat_conversation(selected_astronaut_id)
+
+            st.session_state.active_conversation = new_id
+            st.rerun()
+
+        st.divider()
+
+        # Aktif sohbetin mesajlarını getir
+        history = get_chat_history(
+            astronaut_id=selected_astronaut_id,
+            conversation_id=active_id
         )
 
-        # Yeni mesajları kaydet
-        add_chat_message("user", question, selected_astronaut_id)
-        add_chat_message("assistant", response, selected_astronaut_id)
+        # Mesajları göster
+        for message in history:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
-        st.rerun()
+        # Yeni soru alanı
+        question = st.chat_input(
+            "AstroGuard'a bir soru sor..."
+            if TR else
+            "Ask AstroGuard a question..."
+        )
+
+        if question:
+
+            # AI cevabını oluştur
+            response = answer_question(
+                question,
+                get_measurements(selected_astronaut_id),
+                get_baseline(selected_astronaut_id),
+                lang,
+                history
+            )
+
+            # Mesajları aktif sohbete kaydet
+            add_chat_message(
+                "user",
+                question,
+                selected_astronaut_id,
+                active_id
+            )
+
+            add_chat_message(
+                "assistant",
+                response,
+                selected_astronaut_id,
+                active_id
+            )
+
+            st.rerun()
+
+    # -------------------------
+    # GEÇMİŞ SOHBETLER SEKME
+    # -------------------------
+    with tab_history:
+
+        st.subheader(
+            "🕘 Geçmiş Sohbetler"
+            if TR else
+            "🕘 Previous Conversations"
+        )
+
+        conversations = get_chat_conversations(selected_astronaut_id)
+
+        if conversations:
+
+            for conversation in conversations:
+
+                col1, col2 = st.columns([4, 1])
+
+                with col1:
+
+                    if st.button(
+                        f"💬 {conversation['title']}  |  {conversation['created_at']}",
+                        key=f"conversation_{conversation['id']}",
+                        use_container_width=True
+                    ):
+                        st.session_state.active_conversation = conversation["id"]
+                        st.rerun()
+
+                with col2:
+
+                    if st.button(
+                        "🗑️",
+                        key=f"delete_conversation_{conversation['id']}"
+                    ):
+                        delete_chat_conversation(
+                            conversation["id"],
+                            selected_astronaut_id
+                        )
+
+                        if st.session_state.active_conversation == conversation["id"]:
+                            st.session_state.active_conversation = None
+
+                        st.rerun()
+
+        else:
+            st.info(
+                "Henüz geçmiş sohbet bulunmuyor."
+                if TR else
+                "No previous conversations yet."
+            )
+
         
 elif page == T["emergency"]:
 
