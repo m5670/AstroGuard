@@ -913,6 +913,8 @@ elif page == T["measurements"]:
                             get_baseline(selected_astronaut_id),
                             lang
                         )
+                        st.write("DEBUG MEASUREMENT:", measurement)
+                        st.write("DEBUG RESULT:", result)
                         st.success(T["saved"])
 
                         st.subheader(

@@ -2,374 +2,402 @@
 def analyze_measurement(measurement, baseline, lang="English"):
 
     tr = lang == "Türkçe"
-
-    if baseline is None:
-        baseline = {}
+    baseline = baseline or {}
 
     warnings = []
     criticals = []
     observations = []
+    news_score = 0
+
+    def msg(tr_text, en_text):
+        return tr_text if tr else en_text
 
     def number(data, key):
         value = data.get(key)
-
         if value is None or value == "":
             return None
-
         try:
             return float(value)
         except (TypeError, ValueError):
             return None
 
-    def msg(tr_text, en_text):
-        return tr_text if tr else en_text
+    def add_news(name, value, score):
+        nonlocal news_score
+        news_score += score
+        observations.append(
+            f"{name}: {value} | NEWS2 score: {score}"
+        )
 
     # =================================
-    # 1. TEMEL ÖLÇÜMLER
+    # 1. BASIC MEASUREMENTS
     # =================================
 
     hr = number(measurement, "heart_rate")
     temp = number(measurement, "temperature")
     oxygen = number(measurement, "oxygen")
+    respiratory = number(measurement, "respiratory_rate")
 
-    if (
-        hr is None or hr <= 0
-        or temp is None or temp <= 0
-        or oxygen is None or not 0 < oxygen <= 100
-    ):
+    systolic = number(measurement, "systolic_bp")
+    diastolic = number(measurement, "diastolic_bp")
+
+    activity = measurement.get("activity_state", "rest")
+    hr_duration = number(
+        measurement, "heart_rate_duration_minutes"
+    )
+
+    if hr is None or temp is None or oxygen is None:
         return {
             "status": "Review",
             "summary": msg(
-                "Temel ölçümler eksik veya geçersiz.",
-                "Required measurements are missing or invalid."
+                "Temel ölçümler eksik.",
+                "Required measurements are missing."
             ),
             "details": msg(
                 "Nabız, sıcaklık ve oksijen değerlerini kontrol edin.",
-                "Check heart rate, temperature and oxygen readings."
+                "Check heart rate, temperature and oxygen values."
             )
         }
 
-    activity = measurement.get("activity_state", "rest")
+    if hr <= 0 or temp <= 0 or not 0 < oxygen <= 100:
+        return {
+            "status": "Review",
+            "summary": msg(
+                "Geçersiz ölçüm değeri.",
+                "Invalid measurement value."
+            ),
+            "details": msg(
+                "Ölçüm değerlerini kontrol edin.",
+                "Check measurement values."
+            )
+        }
 
     # =================================
-    # 2. NASA KARDİYOVASKÜLER DEĞERLENDİRME
+    # 2. HEART RATE - NEWS2
     # =================================
 
-    # NASA OCHMO-STD-100.1A:
-    # HR <30 bpm, uyku sırasında değilse tıbbi değerlendirme kriteridir.
+    if hr <= 40:
+        score = 3
+    elif hr <= 50:
+        score = 1
+    elif hr <= 90:
+        score = 0
+    elif hr <= 110:
+        score = 1
+    elif hr <= 130:
+        score = 2
+    else:
+        score = 3
+
+    add_news("Heart rate", f"{hr:g} bpm", score)
+
+    if score == 3:
+        warnings.append(
+            msg(
+                f"ACİL UYARI: Nabız {hr:g} bpm. NEWS2 tek parametre için 3 puanlık eşik.",
+                f"URGENT ALERT: Heart rate {hr:g} bpm. NEWS2 single-parameter score of 3."
+            )
+        )
+
+    # NASA astronaut medical evaluation criteria
 
     if hr < 30 and activity != "sleep":
         warnings.append(
             msg(
-                "NASA tıbbi değerlendirme kriteri: Uyku dışında 30 bpm altı nabız kaydedildi. Ölçümü doğrulayın ve sağlık ekibine bildirin.",
-                "NASA medical evaluation criterion: Heart rate below 30 bpm outside sleep. Verify the reading and notify the medical team."
+                "NASA kriteri: Uyku dışında 30 bpm altı nabız.",
+                "NASA criterion: Heart rate below 30 bpm outside sleep."
             )
         )
 
-    # NASA standardında dinlenme sırasında >130 bpm'nin
-    # 1 saatten uzun sürmesi değerlendirme gerektirir.
+    if activity == "rest" and hr > 130:
+        if hr_duration is not None and hr_duration >= 60:
+            warnings.append(
+                msg(
+                    "NASA kriteri: Dinlenmede 130 bpm üzeri nabız en az 1 saat sürdü.",
+                    "NASA criterion: Resting heart rate above 130 bpm sustained for at least one hour."
+                )
+            )
+        else:
+            warnings.append(
+                msg(
+                    "Dinlenmede 130 bpm üzeri nabız. Süreyi doğrulayın.",
+                    "Resting heart rate above 130 bpm. Verify duration."
+                )
+            )
 
-    hr_duration = number(measurement, "heart_rate_duration_minutes")
+    # =================================
+    # 3. OXYGEN - NEWS2 SCALE 1
+    # =================================
 
-    if (
-        activity == "rest"
-        and hr > 130
-        and hr_duration is not None
-        and hr_duration >= 60
-    ):
+    if oxygen <= 91:
+        score = 3
+    elif oxygen <= 93:
+        score = 2
+    elif oxygen <= 95:
+        score = 1
+    else:
+        score = 0
+
+    add_news("Oxygen saturation", f"{oxygen:g}%", score)
+
+    if score == 3:
         warnings.append(
             msg(
-                "NASA tıbbi değerlendirme kriteri: Dinlenme sırasında 1 saatten uzun süren 130 bpm üzeri nabız.",
-                "NASA medical evaluation criterion: Resting heart rate above 130 bpm sustained for more than one hour."
+                f"ACİL UYARI: Oksijen doygunluğu %{oxygen:g}.",
+                f"URGENT ALERT: Oxygen saturation is {oxygen:g}%."
             )
         )
 
-    elif activity == "rest" and hr > 130:
-        observations.append(
+    # =================================
+    # 4. TEMPERATURE - NEWS2
+    # =================================
+
+    if temp <= 35:
+        score = 3
+    elif temp <= 36:
+        score = 1
+    elif temp <= 38:
+        score = 0
+    elif temp <= 39:
+        score = 1
+    else:
+        score = 2
+
+    add_news("Temperature", f"{temp:g} °C", score)
+
+    if score >= 2:
+        warnings.append(
             msg(
-                "Dinlenme sırasında 130 bpm üzeri nabız kaydedildi. Süre bilgisi olmadığı için NASA'nın 1 saatlik kriteri doğrulanamadı.",
-                "Resting heart rate above 130 bpm recorded. NASA's one-hour criterion cannot be confirmed without duration data."
+                f"Sıcaklık uyarısı: {temp:g} °C.",
+                f"Temperature alert: {temp:g} °C."
             )
         )
 
     # =================================
-    # 3. NASA TANSİYON DEĞERLENDİRMESİ
+    # 5. RESPIRATORY RATE - NEWS2
     # =================================
 
-    systolic = number(measurement, "systolic_bp")
-    diastolic = number(measurement, "diastolic_bp")
+    if respiratory is not None:
+
+        if respiratory <= 8 or respiratory >= 25:
+            score = 3
+        elif respiratory <= 11:
+            score = 1
+        elif respiratory <= 20:
+            score = 0
+        else:
+            score = 2
+
+        add_news(
+            "Respiratory rate",
+            f"{respiratory:g}/min",
+            score
+        )
+
+        if score == 3:
+            warnings.append(
+                msg(
+                    f"ACİL UYARI: Solunum hızı {respiratory:g}/dk.",
+                    f"URGENT ALERT: Respiratory rate {respiratory:g}/min."
+                )
+            )
+
+    # =================================
+    # 6. BLOOD PRESSURE - NEWS2
+    # =================================
+
+    if systolic is not None:
+
+        if systolic <= 90 or systolic >= 220:
+            score = 3
+        elif systolic <= 100:
+            score = 2
+        elif systolic <= 110:
+            score = 1
+        else:
+            score = 0
+
+        add_news(
+            "Systolic blood pressure",
+            f"{systolic:g} mmHg",
+            score
+        )
+
+        if score == 3:
+            warnings.append(
+                msg(
+                    f"ACİL UYARI: Sistolik tansiyon {systolic:g} mmHg.",
+                    f"URGENT ALERT: Systolic blood pressure {systolic:g} mmHg."
+                )
+            )
+
+    # NASA hypertension evaluation criterion
 
     if systolic is not None and diastolic is not None:
 
         if systolic >= 140 or diastolic >= 90:
             warnings.append(
                 msg(
-                    "NASA astronot tıbbi değerlendirme standardındaki hipertansiyon kriteri karşılandı (sistolik ≥140 veya diyastolik ≥90 mmHg). Tek ölçüm kalıcılığı kanıtlamaz; ölçümü tekrarlayın ve sağlık ekibine bildirin.",
-                    "NASA astronaut medical evaluation hypertension criterion reached (systolic ≥140 or diastolic ≥90 mmHg). A single reading does not establish sustained hypertension; repeat and report to the medical team."
+                    "NASA değerlendirme kriteri: Tansiyon 140/90 mmHg veya üzerinde. Ölçümü tekrarlayın.",
+                    "NASA evaluation criterion: Blood pressure at or above 140/90 mmHg. Repeat measurement."
                 )
             )
 
-        else:
-            observations.append(
-                f"Tansiyon: {systolic:g}/{diastolic:g} mmHg"
-            )
-
-    else:
-        observations.append(
-            msg(
-                "Tansiyon ölçümü eksik.",
-                "Blood pressure measurement is missing."
-            )
-        )
-
     # =================================
-    # 4. KİŞİSEL BAŞLANGIÇ VE EĞİLİM
+    # 7. NEWS2 TOTAL
     # =================================
-
-    baseline_fields = {
-        "heart_rate": ("Nabız", "Heart rate", "bpm"),
-        "temperature": ("Vücut sıcaklığı", "Body temperature", "°C"),
-        "oxygen": ("Oksijen doygunluğu", "Oxygen saturation", "%"),
-        "respiratory_rate": ("Solunum hızı", "Respiratory rate", "breaths/min"),
-        "systolic_bp": ("Sistolik tansiyon", "Systolic blood pressure", "mmHg"),
-        "diastolic_bp": ("Diyastolik tansiyon", "Diastolic blood pressure", "mmHg")
-    }
-
-    for key, (tr_name, en_name, unit) in baseline_fields.items():
-
-        current = number(measurement, key)
-        reference = number(baseline, key)
-
-        if current is not None and reference is not None:
-            difference = current - reference
-
-            observations.append(
-                f"{tr_name if tr else en_name}: "
-                f"{current:g} {unit} | "
-                f"Başlangıca göre {difference:+g} {unit}"
-                if tr else
-                f"{en_name}: {current:g} {unit} | "
-                f"{difference:+g} {unit} compared with baseline"
-            )
 
     observations.append(
-        msg(
-            "NASA yaklaşımı: Sağlık ölçümleri zaman içinde izlenmeli ve eğilimleri değerlendirilmelidir. Tek ölçüm tek başına tanı koymaz.",
-            "NASA approach: Health measurements should be monitored over time and evaluated for trends. A single reading does not establish a diagnosis."
-        )
+        f"NEWS2 total score: {news_score}"
     )
 
+    if news_score >= 7:
+        criticals.append(
+            msg(
+                f"NEWS2 YÜKSEK RİSK: Toplam puan {news_score}.",
+                f"NEWS2 HIGH RISK: Total score {news_score}."
+            )
+        )
+
+    elif news_score >= 5:
+        warnings.append(
+            msg(
+                f"NEWS2 ORTA RİSK: Toplam puan {news_score}.",
+                f"NEWS2 MEDIUM RISK: Total score {news_score}."
+            )
+        )
+
     # =================================
-    # 5. NASA UZAY RADYASYONU STANDARTLARI
+    # 8. RADIATION - NASA
     # =================================
 
     radiation_rate = number(measurement, "radiation_rate")
     mission_dose = number(measurement, "radiation_dose")
-
-    # Kariyer toplam etkin doz
     career_dose = number(measurement, "career_radiation_dose")
-
-    # Güneş parçacık olayı dozu
     spe_dose = number(measurement, "spe_dose")
-
-    # Nükleer teknolojilerden kaynaklanan doz
     nuclear_dose = number(measurement, "nuclear_radiation_dose")
-
     mission_days = number(measurement, "mission_duration_days")
 
     if radiation_rate is not None:
+        observations.append(
+            f"Radiation rate: {radiation_rate:g} µSv/hour"
+        )
 
         if radiation_rate < 0:
-            return {
-                "status": "Review",
-                "summary": msg(
-                    "Radyasyon doz hızı geçersiz.",
-                    "Radiation dose rate is invalid."
-                ),
-                "details": msg(
-                    "Radyasyon ölçüm cihazını kontrol edin.",
-                    "Check the radiation measurement device."
-                )
-            }
-
-        observations.append(
-            f"Radyasyon doz hızı: {radiation_rate:g} µSv/hour"
-            if tr else
-            f"Radiation dose rate: {radiation_rate:g} µSv/hour"
-        )
+            warnings.append(
+                msg("Geçersiz radyasyon değeri.", "Invalid radiation value.")
+            )
 
     if mission_dose is not None:
-
-        if mission_dose < 0:
-            return {
-                "status": "Review",
-                "summary": msg(
-                    "Birikimli radyasyon dozu geçersiz.",
-                    "Cumulative radiation dose is invalid."
-                ),
-                "details": msg(
-                    "Radyasyon doz verisini kontrol edin.",
-                    "Check the radiation dose data."
-                )
-            }
-
         observations.append(
-            f"Görev boyunca biriken doz: {mission_dose:g} mSv"
-            if tr else
-            f"Cumulative mission dose: {mission_dose:g} mSv"
+            f"Mission radiation dose: {mission_dose:g} mSv"
         )
-
-    # NASA V1 4030: Kariyer toplam etkin doz <600 mSv
 
     if career_dose is not None:
 
         observations.append(
-            f"Kariyer toplam etkin doz: {career_dose:g} mSv"
-            if tr else
-            f"Career cumulative effective dose: {career_dose:g} mSv"
+            f"Career radiation dose: {career_dose:g} mSv"
         )
 
         if career_dose >= 600:
             criticals.append(
                 msg(
-                    "NASA sınırı: Kariyer toplam etkin radyasyon dozu 600 mSv sınırına ulaştı veya aştı.",
-                    "NASA limit: Career cumulative effective radiation dose has reached or exceeded 600 mSv."
+                    "NASA kariyer toplam etkin doz sınırı 600 mSv'ye ulaşıldı veya aşıldı.",
+                    "NASA career cumulative effective dose limit of 600 mSv reached or exceeded."
                 )
             )
-
-        elif career_dose >= 500:
-            warnings.append(
-                msg(
-                    "Kariyer toplam radyasyon dozu 600 mSv NASA sınırına yaklaşıyor.",
-                    "Career radiation dose is approaching NASA's 600 mSv limit."
-                )
-            )
-
-    else:
-        observations.append(
-            msg(
-                "Kariyer toplam dozu girilmediği için 600 mSv sınırı değerlendirilemedi.",
-                "The 600 mSv limit cannot be evaluated because career dose data is unavailable."
-            )
-        )
-
-    # NASA V1 4031: SPE tasarım referans dozu <250 mSv / olay
 
     if spe_dose is not None:
+
+        observations.append(
+            f"SPE dose: {spe_dose:g} mSv"
+        )
 
         if spe_dose >= 250:
             criticals.append(
                 msg(
-                    "NASA güneş parçacık olayı doz sınırı olan 250 mSv'ye ulaşıldı veya aşıldı.",
-                    "NASA solar particle event dose limit of 250 mSv has been reached or exceeded."
+                    "NASA güneş parçacık olayı tasarım referans dozu 250 mSv'ye ulaşıldı veya aşıldı.",
+                    "NASA solar particle event design reference dose of 250 mSv reached or exceeded."
                 )
             )
-
-        else:
-            observations.append(
-                f"Güneş parçacık olayı dozu: {spe_dose:g} mSv"
-                if tr else
-                f"Solar particle event dose: {spe_dose:g} mSv"
-            )
-
-    # NASA V1 4032: Nükleer teknoloji dozu <20 mSv / görev yılı
 
     if nuclear_dose is not None and mission_days is not None:
 
-        if mission_days <= 0:
-            warnings.append(
-                msg(
-                    "Görev süresi geçersiz; nükleer radyasyon sınırı hesaplanamadı.",
-                    "Mission duration is invalid; nuclear radiation limit could not be calculated."
-                )
-            )
+        if mission_days > 0:
 
-        else:
-            allowed_nuclear_dose = 20 * mission_days / 365.25
+            limit = 20 * mission_days / 365.25
 
             observations.append(
-                f"Görev süresine göre nükleer radyasyon sınırı: {allowed_nuclear_dose:.3f} mSv"
-                if tr else
-                f"Mission-duration-adjusted nuclear radiation limit: {allowed_nuclear_dose:.3f} mSv"
+                f"Nuclear technology dose: {nuclear_dose:g} mSv / limit: {limit:.3f} mSv"
             )
 
-            if nuclear_dose >= allowed_nuclear_dose:
+            if nuclear_dose >= limit:
                 criticals.append(
                     msg(
-                        "NASA nükleer teknoloji radyasyon sınırı aşıldı veya karşılandı.",
-                        "NASA nuclear technology radiation limit has been reached or exceeded."
+                        "NASA nükleer teknoloji radyasyon sınırı karşılandı veya aşıldı.",
+                        "NASA nuclear technology radiation limit reached or exceeded."
                     )
                 )
 
-    # ALARA ilkesi
     observations.append(
         msg(
-            "NASA ALARA ilkesi: Radyasyon maruziyeti makul ölçüde mümkün olan en düşük seviyede tutulmalıdır.",
+            "NASA ALARA ilkesi: Radyasyon maruziyeti mümkün olan en düşük seviyede tutulmalıdır.",
             "NASA ALARA principle: Radiation exposure should be kept as low as reasonably achievable."
         )
     )
 
     # =================================
-    # 6. NASA UYKU DEĞERLENDİRMESİ
+    # 9. BASELINE COMPARISON
     # =================================
 
-    sleep_hours = number(measurement, "sleep_hours")
-    sleep_quality = number(measurement, "sleep_quality")
+    fields = {
+        "heart_rate": ("Nabız", "Heart rate", "bpm"),
+        "temperature": ("Sıcaklık", "Temperature", "°C"),
+        "oxygen": ("Oksijen", "Oxygen", "%"),
+        "respiratory_rate": ("Solunum", "Respiratory rate", "/min"),
+        "systolic_bp": ("Sistolik tansiyon", "Systolic BP", "mmHg"),
+        "diastolic_bp": ("Diyastolik tansiyon", "Diastolic BP", "mmHg")
+    }
 
-    if sleep_hours is not None:
-        observations.append(
-            f"Son 24 saat uyku süresi: {sleep_hours:g} saat"
-            if tr else
-            f"Sleep duration in the last 24 hours: {sleep_hours:g} hours"
-        )
+    for key, names in fields.items():
 
-    if sleep_quality is not None:
-        observations.append(
-            f"Uyku kalitesi bildirimi: {sleep_quality:g}"
-            if tr else
-            f"Reported sleep quality: {sleep_quality:g}"
-        )
+        current = number(measurement, key)
+        reference = number(baseline, key)
 
-    observations.append(
-        msg(
-            "NASA standardı uyku miktarı ve kalitesinin düzenli değerlendirilmesini ister.",
-            "NASA standards require regular assessment of sleep quantity and quality."
-        )
-    )
+        if current is not None and reference is not None:
 
-    # =================================
-    # 7. YORGUNLUK VE STRES
-    # =================================
+            tr_name, en_name, unit = names
 
-    fatigue = number(measurement, "fatigue_level")
-    stress = number(measurement, "stress_level")
-
-    if fatigue is not None:
-        observations.append(
-            f"Yorgunluk seviyesi: {fatigue:g}/5"
-            if tr else
-            f"Fatigue level: {fatigue:g}/5"
-        )
-
-    if stress is not None:
-        observations.append(
-            f"Stres seviyesi: {stress:g}/5"
-            if tr else
-            f"Stress level: {stress:g}/5"
-        )
+            observations.append(
+                f"{tr_name if tr else en_name}: "
+                f"{current - reference:+g} {unit} vs baseline"
+            )
 
     # =================================
-    # 8. EGZERSİZ VE BELİRTİLER
+    # 10. SLEEP, FATIGUE, STRESS
     # =================================
 
-    exercise_minutes = number(measurement, "exercise_minutes")
+    for key, label in [
+        ("sleep_hours", "Sleep hours"),
+        ("sleep_quality", "Sleep quality"),
+        ("fatigue_level", "Fatigue"),
+        ("stress_level", "Stress")
+    ]:
+
+        value = number(measurement, key)
+
+        if value is not None:
+            observations.append(f"{label}: {value:g}")
+
+    # =================================
+    # 11. EXERCISE AND SYMPTOMS
+    # =================================
+
+    exercise = number(measurement, "exercise_minutes")
     symptoms = measurement.get("symptoms", "")
 
-    if exercise_minutes is not None:
+    if exercise is not None:
         observations.append(
-            f"Egzersiz süresi: {exercise_minutes:g} dakika"
-            if tr else
-            f"Exercise duration: {exercise_minutes:g} minutes"
+            f"Exercise: {exercise:g} minutes"
         )
 
     if symptoms and str(symptoms).strip():
@@ -381,34 +409,38 @@ def analyze_measurement(measurement, baseline, lang="English"):
         )
 
     # =================================
-    # 9. SONUÇ
+    # 12. FINAL RESULT
     # =================================
 
     if criticals:
         return {
             "status": "Critical",
             "summary": msg(
-                "NASA radyasyon sınırlarından biri karşılandı veya aşıldı. Ölçümleri doğrulayın ve görev sağlık protokolünü uygulayarak sağlık ekibine bildirin.",
-                "A NASA radiation limit has been reached or exceeded. Verify readings and notify the medical team according to mission health protocols."
+                "KRİTİK UYARI: Yüksek riskli değerlendirme sonucu tespit edildi. Sağlık ekibine bildirin.",
+                "CRITICAL ALERT: A high-risk evaluation result was detected. Notify the medical team."
             ),
-            "details": "\n".join(criticals + warnings + observations)
+            "details": "\n".join(
+                criticals + warnings + observations
+            )
         }
 
     if warnings:
         return {
             "status": "Warning",
             "summary": msg(
-                "NASA tıbbi değerlendirme kriterlerinden biri işaretlendi. Ölçümü doğrulayın ve sağlık ekibine bildirin.",
-                "A NASA medical evaluation criterion has been flagged. Verify the reading and notify the medical team."
+                "UYARI: Bir veya daha fazla değerlendirme eşiği aşıldı. Ölçümleri doğrulayın ve sağlık ekibine bildirin.",
+                "WARNING: One or more evaluation thresholds were reached. Verify measurements and notify the medical team."
             ),
-            "details": "\n".join(warnings + observations)
+            "details": "\n".join(
+                warnings + observations
+            )
         }
 
     return {
         "status": "Normal",
         "summary": msg(
-            "Kaydedilen verilerde mevcut NASA değerlendirme kriterlerine göre bir uyarı oluşmadı. İzlemeye devam edin.",
-            "No alert was triggered by the available NASA evaluation criteria. Continue monitoring."
+            "Mevcut değerlendirme eşiklerine göre uyarı tespit edilmedi. İzlemeye devam edin.",
+            "No alert was detected by the available evaluation thresholds. Continue monitoring."
         ),
         "details": "\n".join(observations)
     }
