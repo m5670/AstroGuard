@@ -1109,6 +1109,21 @@ elif page == T["mission_control"]:
             use_container_width=True,
             hide_index=True
         )
+
+        st.markdown("---")
+        st.subheader("📥 Ölçümleri Dışa Aktar")
+
+        if not df.empty:
+            csv = df.to_csv(index=False).encode("utf-8-sig")
+
+            st.download_button(
+                label="📥 CSV olarak indir",
+                data=csv,
+                file_name="astroguard_measurements.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("İndirilecek ölçüm bulunamadı.")
         st.divider()
 
         st.subheader(
