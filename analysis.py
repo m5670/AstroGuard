@@ -3,14 +3,8 @@ def analyze_measurement(measurement, baseline, lang="English"):
 
     tr = lang == "Türkçe"
 
-    if not baseline:
-        return {
-            "status": "Needs baseline",
-            "summary": "Önce Dünya başlangıç verilerini kaydedin." if tr else
-                       "Please save an Earth baseline first.",
-            "details": "Kişisel referans verisi bulunamadı." if tr else
-                       "No personal reference data is available."
-        }
+    if baseline is None:
+        baseline = {}
 
     warnings = []
     criticals = []
