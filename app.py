@@ -1108,51 +1108,243 @@ elif page == T["assistant"]:
             )
 
         
+
 elif page == T["emergency"]:
 
     st.header("🚨 " + T["emergency"])
-    st.warning(T["emergency_warning"])
 
-    topics = {
-        "Unusual heart rate": "Anormal kalp atış hızı",
+    st.warning(
+        "Bu rehber genel bilgilendirme amaçlıdır. "
+        if TR else
+        "This guide is for general educational purposes."
+    )
+
+    topics_tr = {
+        "Unusual heart rate": "Olağandışı kalp atışı",
         "Low oxygen reading": "Düşük oksijen ölçümü",
         "High temperature": "Yüksek vücut sıcaklığı",
-        "Feeling unwell / uncertain": "Kendini kötü hissetme / emin olamama"
+        "Feeling unwell / uncertain": "Kendini kötü hissetme veya emin olamama",
+        "Chest pain": "Göğüs ağrısı",
+        "Breathing difficulty": "Solunum güçlüğü",
+        "Loss of consciousness": "Bilinç kaybı veya bilinç değişikliği",
+        "Bleeding / injury": "Kanama veya yaralanma",
+        "Radiation exposure": "Radyasyon maruziyeti",
+        "Cabin pressure / toxic exposure": "Kabin basıncı veya toksik madde maruziyeti",
+        "Psychological distress": "Psikolojik zorlanma"
     }
 
-    if TR:
-        topic = st.selectbox(T["situation"], list(topics.values()))
-        topic = {v: k for k, v in topics.items()}[topic]
-    else:
-        topic = st.selectbox(T["situation"], list(topics.keys()))
+    st.subheader(
+        "Acil Durum Konuları" if TR else "Emergency Topics"
+    )
 
-    st.write(get_emergency_notice(topic, lang))
+    if TR:
+        selected = st.selectbox(
+            "İncelemek istediğiniz durumu seçin:",
+            list(topics_tr.values())
+        )
+        topic = {v: k for k, v in topics_tr.items()}[selected]
+    else:
+        topic = st.selectbox(
+            "Select an emergency topic:",
+            list(topics_tr.keys())
+        )
+
+    st.divider()
+
+    notice = get_emergency_notice(topic, lang)
+
+    st.markdown(notice)
+
+
 
 elif page == T["guide"]:
 
-    st.header(T["guide"])
+    st.header("📘 " + T["guide"])
 
     if TR:
-        guides = {
-            "Kalp Atış Hızı": "Onaylanmış kalp atış hızı ölçüm cihazını kullanın. Ölçümün saatini ve değerini kaydedin.",
-            "Vücut Sıcaklığı": "Onaylanmış termometreyi kullanım talimatlarına göre kullanın.",
-            "Oksijen Doygunluğu": "Onaylanmış oksimetreyi kullanın. Sensörün doğru yerleştirildiğinden emin olun."
-        }
+        st.info(
+            "Bu bölüm genel ölçüm eğitimi sunar. "
+            "Herhangi bir astronotun kişisel ölçüm verilerini analiz etmez."
+        )
     else:
-        guides = {
-            "Heart Rate": "Use the approved heart rate monitoring device. Record the time and value.",
-            "Body Temperature": "Use the approved thermometer according to its instructions.",
-            "Oxygen Saturation": "Use the approved pulse oximeter and check sensor placement."
-        }
+        st.info(
+            "This section provides general measurement education. "
+            "It does not analyze any astronaut's personal measurements."
+        )
 
-    for name, description in guides.items():
-        with st.expander(name):
-            st.write(description)
+    guides = {
+        "Heart Rate": {
+            "name": "Kalp Atış Hızı",
+            "unit": "BPM — Dakikadaki kalp atışı",
+            "meaning": "Kalbin bir dakikada kaç kez attığını ifade eder.",
+            "how": "Onaylanmış kalp atış hızı monitörünü veya uygun ölçüm cihazını kullanın. Ölçüm sırasında mümkün olduğunca hareketsiz kalın. Dinlenme ve aktivite durumunu ölçümle birlikte değerlendirin.",
+            "avoid": "Hareket, egzersiz sonrası ölçüm, cihazın yanlış takılması ve sinyal kaybı sonuçları etkileyebilir.",
+            "source": "NASA-STD-3001 Volume 1 — Crew Health; cihazın üretici kullanım talimatları."
+        },
+
+        "Blood Pressure": {
+            "name": "Kan Basıncı",
+            "unit": "mmHg — Milimetre cıva",
+            "meaning": "Sistolik değer kalp kasılırken, diyastolik değer kalp gevşerken arterlerdeki basıncı ifade eder.",
+            "how": "Uygun manşon boyutuna sahip doğrulanmış bir cihaz kullanın. Manşonu çıplak üst kola yerleştirin. Sırtınızı destekleyerek oturun, ayaklarınızı yere basın ve kolunuzu kalp hizasında destekleyin. Ölçüm öncesinde en az 5 dakika dinlenin.",
+            "avoid": "Konuşmak, hareket etmek, bacakları çaprazlamak, yanlış manşon boyutu ve kolu kalp seviyesinden aşağıda tutmak ölçümü etkileyebilir. Standart ev ölçümünde iki ölçüm arasında yaklaşık 1 dakika beklenebilir.",
+            "source": "American Heart Association — Home Blood Pressure Monitoring; CDC — Measuring Your Blood Pressure."
+        },
+
+        "Oxygen Saturation": {
+            "name": "Oksijen Doygunluğu (SpO₂)",
+            "unit": "% — Oksijen doygunluğu",
+            "meaning": "Kandaki hemoglobinin oksijen taşıyan kısmının tahmini yüzdesini gösterir.",
+            "how": "Parmak tipi oksimetreyi cihaz talimatlarına göre yerleştirin. Elinizi rahat ve sıcak tutun. Hareketsiz kalın ve değer sabitlenene kadar bekleyin.",
+            "avoid": "Soğuk el, zayıf dolaşım, hareket, oje, cilt özellikleri ve cihaz kalitesi ölçüm doğruluğunu etkileyebilir. Oksimetre sonucu tek başına sağlık durumunu belirlemez.",
+            "source": "FDA — Pulse Oximeters; FDA — Pulse Oximeter Basics."
+        },
+
+        "Body Temperature": {
+            "name": "Vücut Sıcaklığı",
+            "unit": "°C — Santigrat derece",
+            "meaning": "Vücudun sıcaklık durumunu gösterir. Sonuç ölçüm bölgesine ve kullanılan yönteme göre değişebilir.",
+            "how": "Uygun ve onaylanmış termometre kullanın. Cihazın üretici talimatlarını izleyin. Ölçüm bölgesini ve kullanılan yöntemi kayıt sırasında belirtin.",
+            "avoid": "Farklı ölçüm bölgelerinden alınan sonuçları doğrudan karşılaştırmayın. Fiziksel aktivite ve çevresel koşullar ölçümü etkileyebilir.",
+            "source": "MedlinePlus — Body Temperature; NASA-STD-3001 Volume 1."
+        },
+
+        "Respiratory Rate": {
+            "name": "Solunum Sayısı",
+            "unit": "Nefes/dakika",
+            "meaning": "Bir dakikada gerçekleşen nefes alma ve verme döngülerinin sayısını ifade eder.",
+            "how": "Kişi dinlenirken göğüs veya karın hareketlerini gözlemleyin. Bir yükselme ve alçalma bir nefes döngüsü olarak sayılır. Mümkünse tam 60 saniye boyunca sayım yapın.",
+            "avoid": "Ölçüm sırasında kişinin konuşması, hareket etmesi veya nefesini bilerek değiştirmesi sonucu etkileyebilir.",
+            "source": "MedlinePlus — Vital Signs; NASA-STD-3001 Volume 1."
+        },
+
+        "Heart Rate Variability": {
+            "name": "Kalp Atım Hızı Değişkenliği (HRV)",
+            "unit": "ms — Milisaniye",
+            "meaning": "Ardışık kalp atımları arasındaki zaman aralıklarının değişkenliğini ifade eder. Kalp atış hızından farklı bir ölçümdür.",
+            "how": "HRV ölçümü yapabilen uygun bir sensör veya ECG tabanlı cihaz kullanın. Karşılaştırma yapılacaksa aynı cihazı ve benzer ölçüm koşullarını kullanın.",
+            "avoid": "Farklı cihazların algoritmaları ve ölçüm yöntemleri farklı sonuçlar verebilir. Tek bir HRV değeri tek başına sağlık durumu veya stres düzeyi teşhisi koymaz.",
+            "source": "NASA-STD-3001 Volume 1 — Crew Health; cihazın teknik dokümantasyonu."
+        },
+
+        "Radiation Dose": {
+            "name": "Radyasyon Dozu",
+            "unit": "mSv — Milisievert; doz hızı için µSv/h gibi birimler kullanılabilir.",
+            "meaning": "Radyasyon dozu, alınan radyasyonun biyolojik etkisini değerlendirmede kullanılan bir büyüklüktür. Toplam birikmiş doz ile anlık doz hızı aynı şey değildir.",
+            "how": "Görev için onaylanmış dozimetre ve radyasyon izleme sistemlerini kullanın. Cihazın ölçüm aralığını, zamanını ve doz birimini kayıt altına alın.",
+            "avoid": "Doz hızı ile toplam dozu birbirine karıştırmayın. Farklı radyasyon türleri ve ölçüm cihazları farklı değerlendirmeler gerektirebilir.",
+            "source": "NASA-STD-3001 Volume 1 — Crew Health; NASA-STD-3001 Volume 2 — Environmental Health."
+        },
+
+        "Sleep": {
+            "name": "Uyku",
+            "unit": "Saat — Uyku süresi",
+            "meaning": "Uyku süresi ve uyku düzeni, dinlenme ve görev performansının izlenmesinde kullanılan göstergelerdir.",
+            "how": "Uyku başlangıç ve bitiş zamanlarını, toplam uyku süresini ve uyanma dönemlerini düzenli şekilde kaydedin. Kullanılan cihazın ölçüm yöntemini belirtin.",
+            "avoid": "Akıllı saatlerin uyku evresi tahminleri doğrudan klinik uyku ölçümüyle aynı değildir.",
+            "source": "NASA-STD-3001 Volume 1 — Crew Health; NASA Human Research Program."
+        },
+
+        "Fatigue": {
+            "name": "Yorgunluk",
+            "unit": "Öz değerlendirme ölçeği veya görev için tanımlanmış puanlama sistemi",
+            "meaning": "Fiziksel veya zihinsel yorgunluk, dikkat ve görev performansını etkileyebilir.",
+            "how": "Görev için belirlenmiş standart yorgunluk değerlendirme formunu kullanın. Değerlendirme zamanını ve kullanılan ölçeği kaydedin.",
+            "avoid": "Farklı puanlama ölçeklerini birbirleriyle doğrudan karşılaştırmayın. Öz değerlendirme tek başına tıbbi teşhis değildir.",
+            "source": "NASA-STD-3001 Volume 1 — Crew Health; NASA Human Research Program."
+        }
+    }
+
+    for key, guide in guides.items():
+
+        title = guide["name"] if TR else key
+
+        with st.expander(title):
+
+            if TR:
+                st.markdown("**Ne ifade eder?**")
+                st.write(guide["meaning"])
+
+                st.markdown("**Ölçüm birimi**")
+                st.write(guide["unit"])
+
+                st.markdown("**Nasıl ölçülür?**")
+                st.write(guide["how"])
+
+                st.markdown("**Dikkat edilmesi gerekenler**")
+                st.write(guide["avoid"])
+
+                st.caption("Kaynak: " + guide["source"])
+
+            else:
+                translations = {
+                    "meaning": "What does it measure?",
+                    "unit": "Measurement unit",
+                    "how": "How to measure",
+                    "avoid": "Important considerations",
+                    "source": "Source"
+                }
+
+                st.markdown("**" + translations["meaning"] + "**")
+                st.write({
+                    "Heart Rate": "The number of heartbeats per minute.",
+                    "Blood Pressure": "The pressure in the arteries during and between heartbeats.",
+                    "Oxygen Saturation": "The estimated percentage of hemoglobin carrying oxygen.",
+                    "Body Temperature": "An indicator of the body's thermal state. Results vary by measurement site and method.",
+                    "Respiratory Rate": "The number of breathing cycles per minute.",
+                    "Heart Rate Variability": "The variation in time intervals between consecutive heartbeats.",
+                    "Radiation Dose": "A measure used to evaluate radiation exposure and its potential biological effects.",
+                    "Sleep": "Sleep duration and patterns are indicators used to monitor rest and performance.",
+                    "Fatigue": "Physical or mental tiredness that may affect attention and task performance."
+                }[key])
+
+                st.markdown("**" + translations["unit"] + "**")
+                st.write(guide["unit"])
+
+                st.markdown("**" + translations["how"] + "**")
+                st.write({
+                    "Heart Rate": "Use an approved heart rate monitor. Remain still when possible and consider whether the measurement is taken at rest or after activity.",
+                    "Blood Pressure": "Use a validated device and correctly sized cuff. Sit with your back supported, feet flat and arm supported at heart level. Rest quietly for at least 5 minutes before measuring.",
+                    "Oxygen Saturation": "Place the pulse oximeter according to its instructions. Keep your hand warm and still, and wait for the reading to stabilize.",
+                    "Body Temperature": "Use an appropriate thermometer and follow its instructions. Record the measurement site and method.",
+                    "Respiratory Rate": "Observe chest or abdominal movements while the person is resting. Count one complete breathing cycle for 60 seconds.",
+                    "Heart Rate Variability": "Use a suitable sensor or ECG-based device. Use the same device and similar measurement conditions when comparing readings.",
+                    "Radiation Dose": "Use mission-approved dosimeters and radiation monitoring systems. Record the time, measurement unit and device.",
+                    "Sleep": "Record sleep start and end times, total duration and periods of waking. Identify the device or method used.",
+                    "Fatigue": "Use the standardized fatigue assessment form defined for the mission. Record the time and scoring method."
+                }[key])
+
+                st.markdown("**" + translations["avoid"] + "**")
+                st.write({
+                    "Heart Rate": "Movement, recent exercise, incorrect device placement and signal loss may affect readings.",
+                    "Blood Pressure": "Talking, movement, crossed legs, incorrect cuff size and unsupported arm position can affect results.",
+                    "Oxygen Saturation": "Cold hands, poor circulation, movement, nail polish, skin characteristics and device quality can affect accuracy. Do not rely on the reading alone.",
+                    "Body Temperature": "Do not directly compare measurements taken at different body sites or using different methods.",
+                    "Respiratory Rate": "Talking, movement or intentionally changing breathing can affect the result.",
+                    "Heart Rate Variability": "Different devices and algorithms may produce different results. One HRV value cannot diagnose a health condition.",
+                    "Radiation Dose": "Do not confuse dose rate with cumulative dose. Radiation type and device characteristics matter.",
+                    "Sleep": "Smartwatch estimates of sleep stages are not equivalent to clinical sleep studies.",
+                    "Fatigue": "Different scoring scales should not be directly compared. Self-assessment alone is not a medical diagnosis."
+                }[key])
+
+                st.caption("Source: " + guide["source"])
+
+    st.divider()
 
     if TR:
-        st.info("Ölçüm prosedürleri ve tıbbi eşikler uzmanlar tarafından doğrulanmalıdır.")
+        st.info(
+            "Not: Bu rehber genel eğitim amaçlıdır. "
+            "Gerçek uzay görevlerinde ölçümler, görev için onaylanmış "
+            "cihazlar ve prosedürler doğrultusunda yapılmalıdır. "
+            "Buradaki bilgiler NASA tarafından belirlenmiş klinik alarm eşikleri değildir."
+        )
     else:
-        st.info("Measurement procedures and medical thresholds must be validated by experts.")
+        st.info(
+            "Note: This guide is for general education. "
+            "Measurements during actual space missions must follow "
+            "mission-approved devices and procedures. "
+            "The information here does not represent NASA clinical alert thresholds."
+        )
 
 elif page == T["mission_control"]:
     if "delete_success" in st.session_state:
