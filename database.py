@@ -172,6 +172,58 @@ def init_db():
             )
         """)
 
+        # Check old database columns
+        chat_columns = {
+            row[1]
+            for row in con.execute(
+                "PRAGMA table_info(chat_messages)"
+            ).fetchall()
+        }
+
+        # Add conversation_id if missing
+        if "conversation_id" not in chat_columns:
+
+            con.execute("""
+                ALTER TABLE chat_messages
+                ADD COLUMN conversation_id INTEGER
+            """)
+
+        # Find old messages without a conversation
+        old_messages = con.execute("""
+            SELECT DISTINCT astronaut_id
+            FROM chat_messages
+            WHERE conversation_id IS NULL
+        """).fetchall()
+
+        for (astronaut_id,) in old_messages:
+
+            first_message = con.execute("""
+                SELECT content
+                FROM chat_messages
+                WHERE astronaut_id = ?
+                AND role = 'user'
+                ORDER BY id ASC
+                LIMIT 1
+            """, (astronaut_id,)).fetchone()
+
+            title = (
+                first_message[0][:40]
+                if first_message else "Previous Chat"
+            )
+
+            cursor = con.execute("""
+                INSERT INTO chat_conversations (title, astronaut_id)
+                VALUES (?, ?)
+            """, (title, astronaut_id))
+
+            new_conversation_id = cursor.lastrowid
+
+            con.execute("""
+                UPDATE chat_messages
+                SET conversation_id = ?
+                WHERE astronaut_id = ?
+                AND conversation_id IS NULL
+            """, (new_conversation_id, astronaut_id))
         # Add conversation_id to old databases
         chat_columns = {
             row[1]
